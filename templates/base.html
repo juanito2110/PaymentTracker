@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Payment Tracker</title>
+    <link href="{{ url_for('static', filename='css/output.css') }}?v={{ config['ENV'] }}" rel="stylesheet">
+</head>
+<body class="bg-gray-100 text-gray-900">
+    {% block content %}{% endblock %}
+</body>
+</html>

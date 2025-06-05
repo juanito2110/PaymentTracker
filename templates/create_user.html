@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="p-8 max-w-xl mx-auto">
+  <h1 class="text-2xl font-bold mb-4">Create New User</h1>
+  <form action="{{ url_for('create_user') }}" method="POST" class="space-y-4">
+    <div>
+      <label class="block text-sm font-medium">First Name</label>
+      <input name="first_name" required class="w-full border p-2 rounded" />
+    </div>
+    <div>
+      <label class="block text-sm font-medium">Last Name</label>
+      <input name="last_name" required class="w-full border p-2 rounded" />
+    </div>
+    <div>
+      <label class="block text-sm font-medium">Payment Frequency</label>
+      <select name="payment_plan" class="w-full border p-2 rounded">
+        <option value="mes">Mensual</option>
+        <option value="trimestre">Trimestral</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-sm font-medium">Activity</label>
+      <select name="activity_id" required class="w-full border p-2 rounded">
+        {% for activity in activities %}
+        <option value="{{ activity.id }}">{{ activity.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded">Create User</button>
+  </form>
+</div>
+{% endblock %}
