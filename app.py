@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, flash
 from email_reader import process_emails  # Import the function above
 import supabase
+from jinja2 import Environment
+from datetime import datetime
 
 load_dotenv()
 
@@ -20,6 +22,14 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 # Supabase client
 supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 
+from jinja2 import Environment
+
+@app.template_filter('datetimeformat')
+def datetimeformat(value, format='%Y-%m-%d'):
+    if value is None:
+        return ""
+    return datetime.strptime(value, '%Y-%m-%d').strftime(format)
+
 @app.route('/sync-payments')
 def sync_payments():
     new_payments = process_emails()
@@ -31,16 +41,108 @@ def sync_payments():
 
 @app.route('/dashboard')
 def dashboard():
-    # Fetch recent payments
-    payments = supabase.table("payments").select("*").order("payment_date", desc=True).limit(10).execute()
-    
+    # ✅ Keep recent payments separate from user-level payments
+    recent_payments_response = supabase.table("payments").select("*").order("payment_date", desc=True).limit(10).execute()
+    recent_payments = recent_payments_response.data if not isinstance(recent_payments_response, list) else recent_payments_response
+
     # Fetch payment summary
-    summary = supabase.rpc("get_payment_summary").execute()  # You'll need to create this function in Supabase
-    
-    # Fetch users with payment status
-    users = supabase.table("users").select("*, payments(*)").execute()
-    
+    summary = supabase.rpc("get_payment_summary").execute()
+
+    # Fetch users with joined activities and payments
+    users_raw = supabase.table("users").select("*, payments(*), activities(name)").execute()
+    users_raw = users_raw.data if not isinstance(users_raw, list) else users_raw
+
+    users = []
+    for user in users_raw:
+        user_payments = user.get("payments", [])
+        payment_frequency = user.get("payment_frequency", 0)
+        expected_amount = user.get("expected_payment_amount", 0.0)
+
+        paid_count = len(user_payments)
+        paid_total = sum(p["amount"] for p in user_payments if p.get("amount") is not None)
+        expected_total = payment_frequency * expected_amount
+
+        users.append({
+            "full_name": user["full_name"],
+            "activity": user.get("activities", {}).get("name", "N/A"),
+            "paid_count": paid_count,
+            "payment_frequency": payment_frequency,
+            "paid_total": paid_total,
+            "expected_total": expected_total
+        })
+
     return render_template('dashboard.html', 
-                         payments=payments.data,
-                         summary=summary.data,
-                         users=users.data)
+        payments=recent_payments,  # ✅ this stays the full independent list
+        summary=summary.data,
+        users=users)
+
+@app.route('/users', methods=['GET', 'POST'])
+def manage_users():
+    if request.method == 'POST':
+        # Get form data
+        first_name = request.form['first_name']
+        last_name = request.form['last_name']
+        phone = request.form['phone']
+        birth_date = request.form['birth_date']
+        activity_id = request.form['activity_id']
+        payment_plan_type = request.form['payment_plan_type']
+        expected_payment_amount = float(request.form['expected_payment_amount'])
+        payment_frequency = int(request.form['payment_frequency'])
+        
+        # Insert into Supabase
+        try:
+            response = supabase.table('users').insert({
+                "first_name": first_name,
+                "last_name": last_name,
+                "phone": phone,
+                "birth_date": birth_date,
+                "activity_id": activity_id,
+                "payment_plan_type": payment_plan_type,
+                "expected_payment_amount": expected_payment_amount,
+                "payment_frequency": payment_frequency
+            }).execute()
+            
+            flash('User added successfully!', 'success')
+            return redirect(url_for('manage_users'))
+        
+        except Exception as e:
+            flash(f'Error adding user: {str(e)}', 'danger')
+    
+    # Get existing users and activities for dropdown
+    users = supabase.table('users').select('*').execute()
+    activities = supabase.table('activities').select('*').execute()
+    
+    return render_template('users.html', 
+                         users=users.data,
+                         activities=activities.data)
+
+@app.route('/users/delete/<user_id>', methods=['POST'])
+def delete_user(user_id):
+    try:
+        supabase.table('users').delete().eq('id', user_id).execute()
+        flash('User deleted successfully!', 'success')
+    except Exception as e:
+        flash(f'Error deleting user: {str(e)}', 'danger')
+    return redirect(url_for('manage_users'))
+
+@app.route('/manage_activities', methods=['GET', 'POST'])
+def manage_activities():
+    if request.method == 'POST':
+        name = request.form['name']
+        price = float(request.form['price'])
+        frequency = int(request.form['frequency'])
+
+        # Insert into Supabase
+        supabase.table("activities").insert({
+            "name": name,
+            "price": price,
+            "frequency": frequency
+        }).execute()
+
+        return redirect(url_for('manage_activities'))
+
+    # GET request: fetch existing activities
+    activities = supabase.table("activities").select("*").order("name").execute()
+    activities = activities.data if not isinstance(activities, list) else activities
+
+    return render_template('manage_activities.html', activities=activities)
