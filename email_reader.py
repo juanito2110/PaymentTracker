@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 from supabase import create_client, Client
 import os
 from dotenv import load_dotenv
+from bs4 import BeautifulSoup  # For HTML parsing
+from unidecode import unidecode
 
 load_dotenv()
 
@@ -18,16 +20,6 @@ supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 EMAIL = os.getenv("EMAIL")
 PASSWORD = os.getenv("PASSWORD")
 IMAP_SERVER = os.getenv("IMAP_SERVER")
-
-import imaplib
-import email
-from email.header import decode_header
-import re
-from datetime import datetime, timedelta
-from supabase import create_client, Client
-import os
-from dotenv import load_dotenv
-from bs4 import BeautifulSoup  # For HTML parsing
 
 load_dotenv()
 
@@ -207,9 +199,16 @@ def process_emails():
                     print(f"Payment {payment['order_id']} already exists")
                     continue
                 
-                # Find matching user (if any)
-                user = supabase.table("users").select("*").ilike("full_name", f"%{payment['full_name']}%").execute()
-                user_id = user.data[0]["id"] if user.data else None
+                # Find matching user (by comparing full names manually)
+                all_users = supabase.table("users").select("id, first_name, last_name").execute()
+
+                user_id = None
+                for user in all_users.data:
+                    db_full_name = unidecode(f"{user['first_name'].strip()} {user['last_name'].strip()}".lower())
+                    email_full_name = unidecode(payment['full_name'].strip().lower())
+                    if db_full_name == email_full_name:
+                        user_id = user["id"]
+                        break
 
                 try:
                     amount = float(str(payment['amount']).replace('€', '').strip())
