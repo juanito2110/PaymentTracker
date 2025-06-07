@@ -1,133 +1,518 @@
-{% extends "base.html" %}
-
-{% block content %}
-<div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-6">Manage Users</h1>
-    <a href="{{ url_for('dashboard') }}"
-       class="text-blue-600 hover:text-blue-800 mb-4 inline-block">
-        &larr; Back to Dashboard
-    </a>
-    
-    <!-- Add User Form -->
-    <div class="bg-white rounded-lg shadow p-6 mb-8">
-        <h2 class="text-xl font-semibold mb-4">Add New User</h2>
-        <form method="POST" action="{{ url_for('manage_users') }}">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="block text-gray-700 mb-2">First Name</label>
-                    <input type="text" name="first_name" required
-                           class="w-full px-3 py-2 border rounded-lg">
-                </div>
-                <div>
-                    <label class="block text-gray-700 mb-2">Last Name</label>
-                    <input type="text" name="last_name" required
-                           class="w-full px-3 py-2 border rounded-lg">
-                </div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Users</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        .form-group {
+            position: relative;
+        }
+        
+        .floating-label {
+            position: absolute;
+            left: 12px;
+            top: 12px;
+            background: white;
+            padding: 0 4px;
+            color: #6b7280;
+            transition: all 0.2s ease;
+            pointer-events: none;
+        }
+        
+        .form-input:focus + .floating-label,
+        .form-input:not(:placeholder-shown) + .floating-label {
+            top: -8px;
+            font-size: 12px;
+            color: #3b82f6;
+        }
+        
+        .success-message {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .loading {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center gap-4 mb-4">
+                <button onclick="goBack()" class="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                    Back to Dashboard
+                </button>
             </div>
+            <h1 class="text-4xl font-bold text-gray-900">Manage Users</h1>
+            <p class="text-gray-600 mt-2">Add new users and manage existing ones</p>
+        </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="block text-gray-700 mb-2">Phone (+34 format)</label>
-                    <input type="tel" name="phone" pattern="\+34\d{9}" required
-                           placeholder="+34123456789"
-                           class="w-full px-3 py-2 border rounded-lg">
+        <!-- Success/Error Messages -->
+        <div id="messageContainer" class="mb-6"></div>
+
+        <!-- Add User Form -->
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-8 mb-8">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="p-2 bg-blue-100 rounded-lg">
+                    <i data-lucide="user-plus" class="w-6 h-6 text-blue-600"></i>
                 </div>
-                <div>
-                    <label class="block text-gray-700 mb-2">Birth Date</label>
-                    <input type="date" name="birth_date"
-                           class="w-full px-3 py-2 border rounded-lg">
-                </div>
+                <h2 class="text-2xl font-semibold text-gray-900">Add New User</h2>
             </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="block text-gray-700 mb-2">Activity</label>
-                    <select name="activity_id" required
-                            class="w-full px-3 py-2 border rounded-lg">
-                        {% for activity in activities %}
-                        <option value="{{ activity.id }}">{{ activity.name }}</option>
-                        {% endfor %}
-                    </select>
+            
+            <form id="userForm" class="space-y-6" action="/users" method="POST">
+                <!-- Personal Information -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="form-group">
+                        <input type="text" id="firstName" name="first_name" required
+                               class="form-input w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                               placeholder=" ">
+                        <label for="firstName" class="floating-label">First Name *</label>
+                    </div>
+                    <div class="form-group">
+                        <input type="text" id="lastName" name="last_name" required
+                               class="form-input w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                               placeholder=" ">
+                        <label for="lastName" class="floating-label">Last Name *</label>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-gray-700 mb-2">Payment Plan</label>
-                    <select name="payment_plan_type" required
-                            class="w-full px-3 py-2 border rounded-lg">
-                        <option value="monthly">Monthly</option>
-                        <option value="quarterly">Quarterly</option>
-                    </select>
-                </div>
-            </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="block text-gray-700 mb-2">Expected Payment (€)</label>
-                    <input type="number" step="0.01" name="expected_payment_amount" required
-                           class="w-full px-3 py-2 border rounded-lg">
+                <!-- Contact Information -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="form-group">
+                        <input type="tel" id="phone" name="phone" pattern="\+34\d{9}" required
+                               class="form-input w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                               placeholder=" ">
+                        <label for="phone" class="floating-label">Phone *</label>
+                        <div class="text-sm text-gray-500 mt-1">Format: +34123456789</div>
+                    </div>
+                    <div class="form-group">
+                        <input type="date" id="birthDate" name="birth_date"
+                               class="form-input w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                               placeholder=" ">
+                        <label for="birthDate" class="floating-label">Birth Date</label>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-gray-700 mb-2">Payment Frequency</label>
-                    <input type="number" name="payment_frequency" min="1" required
-                           class="w-full px-3 py-2 border rounded-lg">
-                </div>
-            </div>
 
-            <button type="submit" 
-                    class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-                Add User
-            </button>
-        </form>
-    </div>
-
-    <!-- Users List -->
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-        <h2 class="text-xl font-semibold p-6 border-b">Existing Users</h2>
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Activity</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Plan</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    {% for user in users %}
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            {{ user.full_name }}
-                            {% if user.birth_date %}
-                            <div class="text-sm text-gray-500">
-                                {{ user.birth_date|datetimeformat('%Y-%m-%d') }}
-                            </div>
-                            {% endif %}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">{{ user.phone }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">
+                <!-- Activity and Payment -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="form-group">
+                        <select id="activity" name="activity_id" required
+                            class="form-input w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                            <option value="">Select Activity</option>
                             {% for activity in activities %}
-                                {% if activity.id == user.activity_id %}
-                                    {{ activity.name }}
-                                {% endif %}
+                            <option value="{{ activity.id }}">{{ activity.name }}</option>
                             {% endfor %}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            {{ user.payment_plan_type|title }} ({{ user.expected_payment_amount }}€)
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}"
-                                  onsubmit="return confirm('Are you sure you want to delete this user?');">
-                                <button type="submit" class="text-red-600 hover:text-red-900">
-                                    Delete
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                        </select>
+                        <label for="activity" class="floating-label">Activity *</label>
+                    </div>
+                    <div class="form-group">
+                        <select id="paymentPlan" name="payment_plan_type" required
+                                class="form-input w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                            <option value="">Select Payment Plan</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="quarterly">Quarterly</option>
+                        </select>
+                        <label for="paymentPlan" class="floating-label">Payment Plan *</label>
+                    </div>
+                </div>
+
+                <!-- Payment Details -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="form-group">
+                        <input type="number" id="expectedPayment" name="expected_payment_amount" step="1.00" required
+                               class="form-input w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                               placeholder=" ">
+                        <label for="expectedPayment" class="floating-label">Expected Payment (€) *</label>
+                    </div>
+                    <div class="form-group">
+                        <input type="number" id="paymentFrequency" name="payment_frequency" min="1" required
+                               class="form-input w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                               placeholder=" ">
+                        <label for="paymentFrequency" class="floating-label">Payment Frequency *</label>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex gap-4 pt-4">
+                    <button type="submit" id="submitBtn"
+                            class="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 transition-all font-medium">
+                        <i data-lucide="user-plus" class="w-4 h-4"></i>
+                        <span id="submitText">Add User</span>
+                        <i data-lucide="loader-2" class="w-4 h-4 loading hidden" id="loadingIcon"></i>
+                    </button>
+                    <button type="button" onclick="resetForm()"
+                            class="flex items-center gap-2 bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition-all font-medium">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                        Reset Form
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Users List -->
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-green-100 rounded-lg">
+                        <i data-lucide="users" class="w-6 h-6 text-green-600"></i>
+                    </div>
+                    <h2 class="text-2xl font-semibold text-gray-900">Existing Users</h2>
+                    <span class="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded-full" id="userCount">2 users</span>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <div class="flex items-center gap-2">
+                                    <i data-lucide="user" class="w-4 h-4"></i>
+                                    Name
+                                </div>
+                            </th>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <div class="flex items-center gap-2">
+                                    <i data-lucide="phone" class="w-4 h-4"></i>
+                                    Phone
+                                </div>
+                            </th>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <div class="flex items-center gap-2">
+                                    <i data-lucide="music" class="w-4 h-4"></i>
+                                    Activity
+                                </div>
+                            </th>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <div class="flex items-center gap-2">
+                                    <i data-lucide="credit-card" class="w-4 h-4"></i>
+                                    Plan
+                                </div>
+                            </th>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <div class="flex items-center gap-2">
+                                    <i data-lucide="settings" class="w-4 h-4"></i>
+                                    Actions
+                                </div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody" class="bg-white divide-y divide-gray-200">
+                        <!--This will be populated by javascript-->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
-</div>
-{% endblock %}
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+          fetch("/api/users")
+              .then(response => response.json())
+              .then(users => {
+                  const tableBody = document.getElementById("usersTableBody");
+                  tableBody.innerHTML = "";  // Clear existing rows
+                  users.forEach(user => {
+                  console.log("User object:", user);  // 👈 log this to debug structure
+
+                  const userId = user.id || user.user_id || "";
+                  const name = user.name || `${user.first_name || ""} ${user.last_name || ""}`.trim();
+                  const initials = name.split(" ").map(n => n[0] || "").join("").slice(0, 2).toUpperCase();
+                  const birthdate = user.birthdate || user.birth_date || "";
+                  const phone = user.phone || "";
+                  const activity = user.activity || user.activity_id || "";
+                  const plan = user.plan_type || user.payment_plan_type || "";
+                  const amount = user.amount || user.expected_payment_amount || "";
+
+                  const row = `
+                    <tr class="hover:bg-gray-50 transition-colors" data-user-id="${user.id}">
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                          <div class="flex-shrink-0 h-10 w-10">
+                            <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                              <span class="text-blue-600 font-medium text-sm">${initials}</span>
+                            </div>
+                          </div>
+                          <div class="ml-4">
+                            <div class="text-sm font-medium text-gray-900">${name}</div>
+                            <div class="text-sm text-gray-500">${birthdate}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${phone}</td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                          ${activity}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">${plan}</div>
+                        <div class="text-sm text-gray-500">${amount}€</div>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button onclick="deleteUser(this)" class="text-red-600 hover:text-red-900 flex items-center gap-1 transition-colors">
+                          <i data-lucide="trash-2" class="w-4 h-4"></i>
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  `;
+
+                  tableBody.insertAdjacentHTML('beforeend', row);
+              });
+
+                  // Update user count
+                  document.getElementById("userCount").textContent = `${users.length} user${users.length !== 1 ? "s" : ""}`;
+              });
+      });
+    </script>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Form handling
+        document.getElementById('userForm').addEventListener('submit', function(e) {
+          e.preventDefault();
+          
+          const submitBtn = document.getElementById('submitBtn');
+          const submitText = document.getElementById('submitText');
+          const loadingIcon = document.getElementById('loadingIcon');
+          
+          // Show loading state
+          submitBtn.disabled = true;
+          submitText.textContent = 'Adding User...';
+          loadingIcon.classList.remove('hidden');
+          
+          // Create FormData object
+          const formData = new FormData(this);
+          
+          // Send data to server
+          fetch(this.action, {
+              method: this.method,
+              body: formData
+          })
+          .then(response => {
+              if (response.redirected) {
+                  window.location.href = response.url;
+              } else {
+                  return response.json();
+              }
+          })
+          .then(data => {
+              if (data && data.error) {
+                  showMessage(data.error, 'error');
+              }
+          })
+          .catch(error => {
+              showMessage('Error adding user', 'error');
+          })
+          .finally(() => {
+              // Reset button state
+              submitBtn.disabled = false;
+              submitText.textContent = 'Add User';
+              loadingIcon.classList.add('hidden');
+          });
+      });
+
+        function showMessage(message, type) {
+            const container = document.getElementById('messageContainer');
+            const alertClass = type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800';
+            const iconName = type === 'success' ? 'check-circle' : 'alert-circle';
+            
+            container.innerHTML = `
+                <div class="success-message ${alertClass} border rounded-lg p-4 flex items-center gap-3">
+                    <i data-lucide="${iconName}" class="w-5 h-5"></i>
+                    <span>${message}</span>
+                    <button onclick="this.parentElement.remove()" class="ml-auto">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            `;
+            
+            lucide.createIcons();
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                const alert = container.querySelector('.success-message');
+                if (alert) {
+                    alert.remove();
+                }
+            }, 5000);
+        }
+
+        function resetForm() {
+            document.getElementById('userForm').reset();
+            
+            // Reset floating labels
+            document.querySelectorAll('.form-input').forEach(input => {
+                input.value = '';
+            });
+        }
+
+        async function deleteUser(button) {
+          try {
+              if (!confirm('Are you sure you want to delete this user?')) return;
+              
+              const row = button.closest('tr');
+              const userId = row.dataset.userId;
+              
+              if (!userId) throw new Error("No user ID found");
+              
+              // Visual feedback
+              row.style.opacity = '0.5';
+              button.disabled = true;
+              
+              // Send delete request
+              const response = await fetch(`/users/delete/${userId}`, {
+                  method: 'POST',
+                  headers: {
+                      'X-Requested-With': 'XMLHttpRequest',
+                      'Accept': 'application/json'
+                  }
+              });
+              
+              if (!response.ok) {
+                  const errorData = await response.json().catch(() => ({}));
+                  throw new Error(errorData.error || 'Failed to delete user');
+              }
+              
+              // Remove from UI
+              row.remove();
+              updateUserCount();
+              showMessage('User deleted successfully!', 'success');
+              
+          } catch (error) {
+              console.error('Delete error:', error);
+              showMessage(error.message, 'error');
+              
+              // Reset UI if error occurred
+              if (row) row.style.opacity = '1';
+              if (button) button.disabled = false;
+          }
+        }
+
+        function addUserToTable() {
+            const form = document.getElementById('userForm');
+            const formData = new FormData(form);
+            
+            const firstName = formData.get('first_name');
+            const lastName = formData.get('last_name');
+            const phone = formData.get('phone');
+            const birthDate = formData.get('birth_date');
+            const activityId = formData.get('activity_id');
+            const paymentPlan = formData.get('payment_plan_type');
+            const expectedPayment = formData.get('expected_payment_amount');
+            
+            // Get activity name
+            const activitySelect = document.getElementById('activity');
+            const activityName = activitySelect.options[activitySelect.selectedIndex].text;
+            
+            // Generate initials
+            const initials = (firstName.charAt(0) + lastName.charAt(0)).toUpperCase();
+            
+            // Generate random color for avatar
+            const colors = ['blue', 'green', 'purple', 'pink', 'indigo', 'yellow'];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            
+            const newRow = `
+                <tr class="hover:bg-gray-50 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 h-10 w-10">
+                                <div class="h-10 w-10 rounded-full bg-${color}-100 flex items-center justify-center">
+                                    <span class="text-${color}-600 font-medium text-sm">${initials}</span>
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <div class="text-sm font-medium text-gray-900">${firstName} ${lastName}</div>
+                                ${birthDate ? `<div class="text-sm text-gray-500">${birthDate}</div>` : ''}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${phone}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-${color}-100 text-${color}-800">
+                            ${activityName}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">${paymentPlan.charAt(0).toUpperCase() + paymentPlan.slice(1)}</div>
+                        <div class="text-sm text-gray-500">${expectedPayment}€</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <button onclick="deleteUser(this)" class="text-red-600 hover:text-red-900 flex items-center gap-1 transition-colors">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            `;
+            
+            document.getElementById('usersTableBody').insertAdjacentHTML('beforeend', newRow);
+            lucide.createIcons();
+            updateUserCount();
+        }
+
+        function updateUserCount() {
+            const count = document.getElementById('usersTableBody').children.length;
+            document.getElementById('userCount').textContent = `${count} user${count !== 1 ? 's' : ''}`;
+        }
+
+        function goBack() {
+            // In a real application, this would navigate to the dashboard
+            alert('Navigate back to dashboard');
+        }
+
+        // Phone number formatting
+        document.getElementById('phone').addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 0 && !value.startsWith('34')) {
+                if (value.startsWith('6') || value.startsWith('7') || value.startsWith('9')) {
+                    value = '34' + value;
+                }
+            }
+            if (value.length > 11) {
+                value = value.substring(0, 11);
+            }
+            if (value.length > 0) {
+                e.target.value = '+' + value;
+            }
+        });
+
+        // Form validation
+        document.querySelectorAll('.form-input[required]').forEach(input => {
+            input.addEventListener('blur', function() {
+                if (!this.value.trim()) {
+                    this.classList.add('border-red-300');
+                    this.classList.remove('border-gray-300');
+                } else {
+                    this.classList.remove('border-red-300');
+                    this.classList.add('border-gray-300');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

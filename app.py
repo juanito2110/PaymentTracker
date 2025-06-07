@@ -1,11 +1,13 @@
 from supabase import create_client, Client
 import os
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response
 from email_reader import process_emails  # Import the function above
 import supabase
 from jinja2 import Environment
 from datetime import datetime
+import json
+
 
 load_dotenv()
 
@@ -80,17 +82,20 @@ def dashboard():
 def manage_users():
     if request.method == 'POST':
         # Get form data
-        first_name = request.form['first_name']
-        last_name = request.form['last_name']
-        phone = request.form['phone']
-        birth_date = request.form['birth_date']
-        activity_id = request.form['activity_id']
-        payment_plan_type = request.form['payment_plan_type']
-        expected_payment_amount = float(request.form['expected_payment_amount'])
-        payment_frequency = int(request.form['payment_frequency'])
-        
-        # Insert into Supabase
         try:
+            first_name = request.form['first_name']
+            print(f"Received first_name: {first_name}")  # Debugging line
+            last_name = request.form['last_name']
+            phone = request.form['phone']
+            print(f"Received phone: {phone}")  # Debugging line
+            birth_date = request.form.get('birth_date')  # Using get() as it's optional
+            activity_id = request.form['activity_id']
+            print(f"Received activity_id: {activity_id}")  # Debugging line
+            payment_plan_type = request.form['payment_plan_type']
+            expected_payment_amount = float(request.form['expected_payment_amount'])
+            payment_frequency = int(request.form['payment_frequency'])
+            
+            # Insert into Supabase
             response = supabase.table('users').insert({
                 "first_name": first_name,
                 "last_name": last_name,
@@ -101,14 +106,19 @@ def manage_users():
                 "expected_payment_amount": expected_payment_amount,
                 "payment_frequency": payment_frequency
             }).execute()
+            print("Response from Supabase:", response)
             
             flash('User added successfully!', 'success')
             return redirect(url_for('manage_users'))
         
         except Exception as e:
+            # For AJAX requests, return JSON
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({'error': str(e)}), 400
             flash(f'Error adding user: {str(e)}', 'danger')
+            return redirect(url_for('manage_users'))
     
-    # Get existing users and activities for dropdown
+    # GET request handling remains the same
     users = supabase.table('users').select('*').execute()
     activities = supabase.table('activities').select('*').execute()
     
@@ -124,6 +134,24 @@ def delete_user(user_id):
     except Exception as e:
         flash(f'Error deleting user: {str(e)}', 'danger')
     return redirect(url_for('manage_users'))
+
+@app.route("/api/users")
+def get_users():
+    users = supabase.table("users").select("*").execute()
+
+    simplified_users = []
+    for user in users.data:
+        simplified_users.append({
+            "id": user.get("id"),
+            "name": f"{user['first_name']} {user['last_name']}",
+            "birthdate": user.get("birth_date"),
+            "phone": user.get("phone"),
+            "activity": user.get("activity_id"),  # Replace with actual activity name if needed
+            "plan_type": user.get("payment_plan_type"),
+            "amount": user.get("expected_payment_amount"),
+        })
+
+    return Response(json.dumps(simplified_users, default=str), mimetype="application/json")
 
 @app.route('/manage_activities', methods=['GET', 'POST'])
 def manage_activities():
@@ -146,3 +174,4 @@ def manage_activities():
     activities = activities.data if not isinstance(activities, list) else activities
 
     return render_template('manage_activities.html', activities=activities)
+
