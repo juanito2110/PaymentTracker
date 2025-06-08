@@ -64,9 +64,12 @@ def dashboard():
         paid_total = sum(p["amount"] for p in user_payments if p.get("amount") is not None)
         expected_total = payment_frequency * expected_amount
 
+        # Fix: handle None for activities
+        activity_name = user.get("activities", {}).get("name") if user.get("activities") else "N/A"
+
         users.append({
             "full_name": user["full_name"],
-            "activity": user.get("activities", {}).get("name", "N/A"),
+            "activity": activity_name,
             "paid_count": paid_count,
             "payment_frequency": payment_frequency,
             "paid_total": paid_total,
@@ -156,22 +159,83 @@ def get_users():
 @app.route('/manage_activities', methods=['GET', 'POST'])
 def manage_activities():
     if request.method == 'POST':
-        name = request.form['name']
-        price = float(request.form['price'])
-        frequency = int(request.form['frequency'])
+        try:
+            # Accept JSON data from fetch
+            if request.is_json:
+                data = request.get_json()
+            else:
+                data = request.form
 
-        # Insert into Supabase
-        supabase.table("activities").insert({
-            "name": name,
-            "price": price,
-            "frequency": frequency
-        }).execute()
+            name = data.get('name')
+            price = float(data.get('price'))
+            # Handle custom frequency
+            frequency = data.get('frequency')
+            if frequency == 'custom':
+                frequency = int(data.get('customFrequencyValue'))
+            else:
+                frequency = int(frequency)
 
-        return redirect(url_for('manage_activities'))
+            # Insert into Supabase
+            response = supabase.table("activities").insert({
+                "name": name,
+                "price": price,
+                "frequency": frequency
+            }).execute()
 
-    # GET request: fetch existing activities
-    activities = supabase.table("activities").select("*").order("name").execute()
-    activities = activities.data if not isinstance(activities, list) else activities
+            # Return the newly created activity
+            return jsonify({
+                'success': True,
+                'activity': response.data[0] if response.data else None
+            })
 
-    return render_template('manage_activities.html', activities=activities)
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 400
+
+    # GET request - fetch activities
+    try:
+        response = supabase.table("activities").select("*").order("name").execute()
+        activities = response.data if hasattr(response, 'data') else []
+
+        # Check if it's an AJAX request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify(activities)
+
+        return render_template('manage_activities.html', activities=activities)
+
+    except Exception as e:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'error': str(e)}), 400
+
+        flash(f'Error loading activities: {str(e)}', 'danger')
+        return render_template('manage_activities.html', activities=[])
+
+@app.route('/delete_activity', methods=['POST'])
+def delete_activity():
+    try:
+        data = request.get_json()
+        activity_id = data.get('id')
+
+        if not activity_id:
+            raise ValueError("Activity ID is required")
+
+        # Delete from Supabase
+        response = supabase.table("activities").delete().eq("id", activity_id).execute()
+
+        # response.data may be None if nothing was deleted
+        if not response.data or len(response.data) == 0:
+            raise ValueError("Activity not found")
+
+        return jsonify({
+            'success': True,
+            'message': 'Activity deleted successfully'
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
 
