@@ -6,53 +6,7 @@
     <title>Manage Users</title>
     <link href="{{ url_for('static', filename='css/output.css') }}?v={{ config['ENV'] }}" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-    <style>
-        .form-group {
-            position: relative;
-        }
-        
-        .floating-label {
-            position: absolute;
-            left: 12px;
-            top: 12px;
-            background: white;
-            padding: 0 4px;
-            color: #6b7280;
-            transition: all 0.2s ease;
-            pointer-events: none;
-        }
-        
-        .form-input:focus + .floating-label,
-        .form-input:not(:placeholder-shown) + .floating-label {
-            top: -8px;
-            font-size: 12px;
-            color: #3b82f6;
-        }
-        
-        .success-message {
-            animation: slideIn 0.3s ease-out;
-        }
-        
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .loading {
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-    </style>
+    <link rel="stylesheet" href="static/css/styles.css">
 </head>
 <body class="bg-gray-50 min-h-screen">
   {% include 'navbar.html' %}
