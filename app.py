@@ -56,6 +56,7 @@ def dashboard():
                 pass
         elif isinstance(p.get("payment_date"), datetime):
             p["payment_date"] = p["payment_date"].strftime("%d-%m-%Y")
+            
     # Fetch payment summary
     summary = supabase.rpc("get_payment_summary").execute()
 
