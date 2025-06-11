@@ -46,7 +46,16 @@ def dashboard():
     # ✅ Keep recent payments separate from user-level payments
     recent_payments_response = supabase.table("payments").select("*").order("payment_date", desc=True).limit(10).execute()
     recent_payments = recent_payments_response.data if not isinstance(recent_payments_response, list) else recent_payments_response
-
+    for p in recent_payments:
+        if isinstance(p.get("payment_date"), str):
+            # Convert string to datetime and back to string in date-only format
+            try:
+                dt = datetime.fromisoformat(p["payment_date"].replace("Z", "+00:00"))  # handle Zulu time
+                p["payment_date"] = dt.strftime("%d-%m-%Y")
+            except ValueError:
+                pass
+        elif isinstance(p.get("payment_date"), datetime):
+            p["payment_date"] = p["payment_date"].strftime("%d-%m-%Y")
     # Fetch payment summary
     summary = supabase.rpc("get_payment_summary").execute()
 
