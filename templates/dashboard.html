@@ -13,7 +13,7 @@
       
     </div>
   </div>
-
+  
   <!-- Summary Cards -->
   <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
     <div class="bg-white p-6 rounded-xl shadow hover:shadow-md transition">
@@ -30,40 +30,7 @@
     </div>
   </div>
 
-  <!-- Recent Payments -->
-  <div class="bg-white rounded-xl shadow mb-12 overflow-hidden">
-    <div class="px-6 py-4 border-b">
-      <h2 class="text-xl font-semibold text-gray-800">Recent Payments</h2>
-    </div>
-    <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-200 text-sm">
-        <thead class="bg-gray-100 sticky top-0 z-10">
-          <tr>
-            {% for col in ["Date", "Student", "Activity", "Amount", "Order Number"] %}
-            <th class="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">{{ col }}</th>
-            {% endfor %}
-          </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-gray-100">
-          {% for payment in payments %}
-          <tr class="hover:bg-gray-50 transition">
-            <td class="px-6 py-4 whitespace-nowrap">{{ payment.payment_date }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ payment.full_name }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ payment.activity }}</td>
-            <td class="px-6 py-4 whitespace-nowrap font-medium text-green-600">{{ "%.2f€"|format(payment.amount) }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">{{ payment.order_id }}</td>
-          </tr>
-          {% else %}
-          <tr>
-            <td colspan="5" class="px-6 py-6 text-center text-gray-400 italic">No payments found</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- User Payment Progress -->
+    <!-- User Payment Progress -->
   <div class="bg-white rounded-xl shadow mb-8 overflow-hidden">
     <div class="px-6 py-4 border-b">
       <h2 class="text-xl font-semibold text-gray-800">User Payment Progress</h2>
@@ -101,5 +68,40 @@
       </table>
     </div>
   </div>
+
+  <!-- Recent Payments -->
+  <div class="bg-white rounded-xl shadow mb-12 overflow-hidden">
+    <div class="px-6 py-4 border-b">
+      <h2 class="text-xl font-semibold text-gray-800">Recent Payments</h2>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200 text-sm">
+        <thead class="bg-gray-100 sticky top-0 z-10">
+          <tr>
+            {% for col in ["Date", "Student", "Activity", "Amount", "Order Number"] %}
+            <th class="px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">{{ col }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-100">
+          {% for payment in payments %}
+          <tr class="hover:bg-gray-50 transition">
+            <td class="px-6 py-4 whitespace-nowrap">{{ payment.payment_date }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">{{ payment.full_name }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">{{ payment.activity }}</td>
+            <td class="px-6 py-4 whitespace-nowrap font-medium text-green-600">{{ "%.2f€"|format(payment.amount) }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">{{ payment.order_id }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" class="px-6 py-6 text-center text-gray-400 italic">No payments found</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+
 </div>
 {% endblock %}

@@ -78,7 +78,7 @@ def extract_payment_data(html_content):
                     print(f"✅ Extracted Payment Date (from text): {data['payment_date']}")
         
         # 2. Extract activity name - needs adjustment
-        product_cell = soup.find('td', class_='td', string=re.compile(r'BATERÍA|PIANO|GUITARRA'))
+        product_cell = soup.find('td', class_='td', string=re.compile(r'BATERÍA|PIANO|GUITARRA|EXCURSIÓN|CLASES|CURSO|RAFTING|PARQUE|PORTAVENTURA|PLANETARIO', re.IGNORECASE))
         if product_cell:
             data['activity'] = product_cell.get_text(strip=True)
             print(f"✅ Extracted activity: {data['activity']}")
@@ -149,7 +149,7 @@ def process_emails():
             mail.login(os.getenv("EMAIL"), os.getenv("PASSWORD"))
             mail.select("INBOX")
             
-            since_date = (datetime.now() - timedelta(days=30)).strftime("%d-%b-%Y")
+            since_date = (datetime.now() - timedelta(days=365)).strftime("%d-%b-%Y")
             status, messages = mail.search(None, f'(SINCE "{since_date}")')
             
             if status != "OK":
@@ -158,7 +158,7 @@ def process_emails():
             
             new_payments = []
             
-            for mail_id in messages[0].split()[-10:]:  # Process last 10 emails
+            for mail_id in messages[0].split()[-300:]:  # Process last 10 emails
                 status, msg_data = mail.fetch(mail_id, "(RFC822)")
                 
                 if status != "OK":
