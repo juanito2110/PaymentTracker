@@ -56,7 +56,7 @@ def dashboard():
                 pass
         elif isinstance(p.get("payment_date"), datetime):
             p["payment_date"] = p["payment_date"].strftime("%d-%m-%Y")
-            
+
     # Fetch payment summary
     summary = supabase.rpc("get_payment_summary").execute()
 
@@ -150,16 +150,19 @@ def delete_user(user_id):
 
 @app.route("/api/users")
 def get_users():
-    users = supabase.table("users").select("*").execute()
+    # Join users with activities table to get the activity name
+    users = supabase.table("users").select("*, activities(name)").execute()
 
     simplified_users = []
     for user in users.data:
         simplified_users.append({
             "id": user.get("id"),
-            "name": f"{user['first_name']} {user['last_name']}",
+            "first_name": user.get("first_name"),
+            "last_name": user.get("last_name"),
             "birthdate": user.get("birth_date"),
             "phone": user.get("phone"),
-            "activity": user.get("activity_id"),  # Replace with actual activity name if needed
+            "activity_id": user.get("activity_id"),
+            "activity_name": user.get("activities", {}).get("name") if user.get("activities") else None,
             "plan_type": user.get("payment_plan_type"),
             "amount": user.get("expected_payment_amount"),
         })

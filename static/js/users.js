@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
                   const initials = name.split(" ").map(n => n[0] || "").join("").slice(0, 2).toUpperCase();
                   const birthdate = user.birthdate || user.birth_date || "";
                   const phone = user.phone || "";
-                  const activity = user.activity || user.activity_id || "";
+                  const activity = user.activity_name || user.activity || user.activity_id || "";
                   const plan = user.plan_type || user.payment_plan_type || "";
                   const amount = user.amount || user.expected_payment_amount || "";
 
