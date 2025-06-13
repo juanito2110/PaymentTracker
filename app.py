@@ -252,3 +252,11 @@ def delete_activity():
             'error': str(e)
         }), 400
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        # Authenticate user here
+        # Redirect on success or show error
+    return render_template('login.html')
