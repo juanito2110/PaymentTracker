@@ -1,9 +1,9 @@
+import supabase
 from supabase import create_client, Client
 import os
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response, session
 from email_reader import process_emails  # Import the function above
-import supabase
 from jinja2 import Environment
 from datetime import datetime
 import json
@@ -24,13 +24,20 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 # Supabase client
 supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 
-from jinja2 import Environment
-
 @app.template_filter('datetimeformat')
 def datetimeformat(value, format='%Y-%m-%d'):
     if value is None:
         return ""
     return datetime.strptime(value, '%Y-%m-%d').strftime(format)
+
+def login_required(f):
+    """Decorator to check if user is logged in."""
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in'):
+            flash('You need to log in first.', 'danger')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 @app.route('/sync-payments')
 def sync_payments():
