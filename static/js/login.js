@@ -52,27 +52,41 @@ document.addEventListener('DOMContentLoaded', function() {
                     'Password must be at least 6 characters'
                 );
 
-                if (isUsernameValid && isPasswordValid) {
-                    // Show loading state
-                    const submitBtn = loginForm.querySelector('button[type="submit"]');
-                    const originalText = submitBtn.innerHTML;
-                    submitBtn.innerHTML = `
-                        <span class="flex items-center justify-center">
-                            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Signing in...
-                        </span>
-                    `;
-                    submitBtn.disabled = true;
+            if (isUsernameValid && isPasswordValid) {
+                // Show loading state
+                const submitBtn = loginForm.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = `
+                    <span class="flex items-center justify-center">
+                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                        Signing in...
+                    </span>
+                `;
+                submitBtn.disabled = true;
 
-                    // Simulate API call (replace with actual fetch)
-                    setTimeout(() => {
-                        // Reset button
-                        submitBtn.innerHTML = originalText;
-                        submitBtn.disabled = false;
+                // Prepare login data
+                const loginData = {
+                    email: usernameField.value,
+                    password: passwordField.value
+                };
 
+                // Make actual API call to your Flask backend
+                fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(loginData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Reset button
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+
+                    if (data.success) {
                         // Show success message
                         const messageContainer = document.getElementById('messageContainer');
                         const messageText = document.getElementById('messageText');
@@ -82,15 +96,36 @@ document.addEventListener('DOMContentLoaded', function() {
                         messageContainer.classList.remove('bg-red-100', 'border-red-400', 'text-red-700');
                         messageContainer.classList.add('bg-green-100', 'border-green-400', 'text-green-700');
 
-                        // Hide message after 3 seconds
+                        // Redirect to dashboard after 1 second
                         setTimeout(() => {
-                            messageContainer.classList.add('hidden');
-                        }, 3000);
+                            window.location.href = '/dashboard';
+                        }, 1000);
+                    } else {
+                        // Show error message
+                        const messageContainer = document.getElementById('messageContainer');
+                        const messageText = document.getElementById('messageText');
+                        
+                        messageText.textContent = data.error || 'Login failed';
+                        messageContainer.classList.remove('hidden');
+                        messageContainer.classList.remove('bg-green-100', 'border-green-400', 'text-green-700');
+                        messageContainer.classList.add('bg-red-100', 'border-red-400', 'text-red-700');
+                    }
+                })
+                .catch(error => {
+                    // Reset button
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
 
-                        // Redirect to dashboard (replace with your actual redirect)
-                        // window.location.href = '/dashboard';
-                    }, 1500);
-                }
+                    // Show error message
+                    const messageContainer = document.getElementById('messageContainer');
+                    const messageText = document.getElementById('messageText');
+                    
+                    messageText.textContent = 'Network error. Please try again.';
+                    messageContainer.classList.remove('hidden');
+                    messageContainer.classList.remove('bg-green-100', 'border-green-400', 'text-green-700');
+                    messageContainer.classList.add('bg-red-100', 'border-red-400', 'text-red-700');
+                });
+            }
             });
         });
 
