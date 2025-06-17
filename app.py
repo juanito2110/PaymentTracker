@@ -7,6 +7,7 @@ from email_reader import process_emails  # Import the function above
 from jinja2 import Environment
 from datetime import datetime
 import json
+from werkzeug.security import check_password_hash, generate_password_hash
 
 
 load_dotenv()
@@ -259,25 +260,97 @@ def delete_activity():
             'error': str(e)
         }), 400
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/login', methods=['POST'])
 def login():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        # Authenticate user here
-        # Redirect on success or show error
-    return render_template('login.html')
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
 
-@app.route('/signup', methods=['GET', 'POST'])
+    if not email or not password:
+        return jsonify({'success': False, 'error': 'Email and password are required'}), 400
+
+    try:
+        # Query your admin table
+        response = supabase.table('admin').select('*').eq('email', email).execute()
+        
+        if not response.data or len(response.data) == 0:
+            return jsonify({'success': False, 'error': 'Invalid credentials'}), 401
+
+        admin_user = response.data[0]
+        
+        # Verify password (assuming passwords are hashed in your database)
+        if not check_password_hash(admin_user['password'], password):
+            return jsonify({'success': False, 'error': 'Invalid credentials'}), 401
+
+        # Set up session
+        session['admin_id'] = admin_user['id']
+        session['admin_email'] = admin_user['email']
+        session['admin_name'] = admin_user['name']
+        session['logged_in'] = True
+
+        return jsonify({
+            'success': True,
+            'message': 'Login successful',
+            'user': {
+                'id': admin_user['id'],
+                'name': admin_user['name'],
+                'email': admin_user['email']
+            }
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/signup', methods=['POST'])
 def signup():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        # Authenticate user here
-        # Redirect on success or show error
-    return render_template('signup.html')
+    data = request.get_json()
+    name = data.get('name')
+    email = data.get('email')
+    password = data.get('password')
 
-app.route('/logout')
+    # Basic validation
+    if not all([name, email, password]):
+        return jsonify({'success': False, 'error': 'All fields are required'}), 400
+
+    try:
+        # Check if email already exists
+        existing_user = supabase.table('admin').select('*').eq('email', email).execute()
+        if existing_user.data and len(existing_user.data) > 0:
+            return jsonify({'success': False, 'error': 'Email already registered'}), 400
+
+        # Hash the password
+        hashed_password = generate_password_hash(password)
+
+        # Create new admin user
+        new_admin = {
+            'name': name,
+            'email': email,
+            'password': hashed_password
+        }
+
+        # Insert into admin table
+        response = supabase.table('admin').insert(new_admin).execute()
+
+        if not response.data or len(response.data) == 0:
+            return jsonify({'success': False, 'error': 'Failed to create account'}), 500
+
+        return jsonify({
+            'success': True,
+            'message': 'Account created successfully! You can now log in.',
+            'user': {
+                'id': response.data[0]['id'],
+                'name': response.data[0]['name'],
+                'email': response.data[0]['email']
+            }
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/logout', methods=['POST'])
 def logout():
-    session.pop('logged_in', None)
-    flash('You have been logged out.', 'success')
+    session.clear()
+    return jsonify({'success': True, 'message': 'Logged out successfully'})
+
+if __name__ == '__main__':
+    app.run(debug=True)

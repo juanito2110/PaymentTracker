@@ -119,32 +119,69 @@ document.addEventListener('DOMContentLoaded', function() {
                     `;
                     submitBtn.disabled = true;
 
-                    // Simulate API call (replace with actual fetch)
-                    setTimeout(() => {
+                    // Prepare signup data
+                    const signupData = {
+                        name: nameField.value,
+                        email: emailField.value,
+                        password: passwordField.value
+                    };
+
+                    // Make actual API call to your Flask backend
+                    fetch('/signup', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(signupData)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
                         // Reset button
                         submitBtn.innerHTML = originalText;
                         submitBtn.disabled = false;
 
-                        // Show success message
+                        if (data.success) {
+                            // Show success message
+                            const messageContainer = document.getElementById('messageContainer');
+                            const messageText = document.getElementById('messageText');
+                            
+                            messageText.textContent = data.message || 'Account created successfully!';
+                            messageContainer.classList.remove('hidden');
+                            messageContainer.classList.remove('bg-red-100', 'border-red-400', 'text-red-700');
+                            messageContainer.classList.add('bg-green-100', 'border-green-400', 'text-green-700');
+
+                            // Reset form
+                            signupForm.reset();
+
+                            // Redirect to login after 2 seconds
+                            setTimeout(() => {
+                                window.location.href = '/login';
+                            }, 2000);
+                        } else {
+                            // Show error message
+                            const messageContainer = document.getElementById('messageContainer');
+                            const messageText = document.getElementById('messageText');
+                            
+                            messageText.textContent = data.error || 'Signup failed';
+                            messageContainer.classList.remove('hidden');
+                            messageContainer.classList.remove('bg-green-100', 'border-green-400', 'text-green-700');
+                            messageContainer.classList.add('bg-red-100', 'border-red-400', 'text-red-700');
+                        }
+                    })
+                    .catch(error => {
+                        // Reset button
+                        submitBtn.innerHTML = originalText;
+                        submitBtn.disabled = false;
+
+                        // Show error message
                         const messageContainer = document.getElementById('messageContainer');
                         const messageText = document.getElementById('messageText');
                         
-                        messageText.textContent = 'Account created successfully!';
+                        messageText.textContent = 'Network error. Please try again.';
                         messageContainer.classList.remove('hidden');
-                        messageContainer.classList.remove('bg-red-100', 'border-red-400', 'text-red-700');
-                        messageContainer.classList.add('bg-green-100', 'border-green-400', 'text-green-700');
-
-                        // Hide message after 3 seconds
-                        setTimeout(() => {
-                            messageContainer.classList.add('hidden');
-                        }, 3000);
-
-                        // Reset form
-                        signupForm.reset();
-
-                        // Redirect to login or dashboard (replace with your actual redirect)
-                        // window.location.href = '/login';
-                    }, 1500);
+                        messageContainer.classList.remove('bg-green-100', 'border-green-400', 'text-green-700');
+                        messageContainer.classList.add('bg-red-100', 'border-red-400', 'text-red-700');
+                    });
                 }
             });
         });
