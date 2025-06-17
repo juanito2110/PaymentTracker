@@ -276,3 +276,8 @@ def signup():
         # Authenticate user here
         # Redirect on success or show error
     return render_template('signup.html')
+
+app.route('/logout')
+def logout():
+    session.pop('logged_in', None)
+    flash('You have been logged out.', 'success')
