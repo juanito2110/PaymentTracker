@@ -8,6 +8,8 @@ from jinja2 import Environment
 from datetime import datetime
 import json
 from werkzeug.security import check_password_hash, generate_password_hash
+from functools import wraps
+
 
 
 load_dotenv()
@@ -33,14 +35,26 @@ def datetimeformat(value, format='%Y-%m-%d'):
 
 def login_required(f):
     """Decorator to check if user is logged in."""
+    @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not session.get('logged_in'):
-            flash('You need to log in first.', 'danger')
+        # Skip check for login page itself to prevent infinite redirects
+        if request.endpoint == 'login':
+            return f(*args, **kwargs)
+            
+        # Check both session variables for more robust authentication
+        if not session.get('logged_in') or not session.get('admin_id'):
+            flash('Please log in to access this page', 'danger')
+            
+            # Store the original URL for redirect after login
+            if request.method == 'GET':
+                session['next_url'] = request.url
+                
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
 
 @app.route('/sync-payments')
+@login_required 
 def sync_payments():
     new_payments = process_emails()
     if new_payments:
@@ -50,6 +64,7 @@ def sync_payments():
     return redirect(url_for('dashboard'))
 
 @app.route('/dashboard')
+@login_required 
 def dashboard():
     # ✅ Keep recent payments separate from user-level payments
     recent_payments_response = supabase.table("payments").select("*").order("payment_date", desc=True).limit(200).execute()
@@ -100,6 +115,7 @@ def dashboard():
         users=users)
 
 @app.route('/users', methods=['GET', 'POST'])
+@login_required
 def manage_users():
     if request.method == 'POST':
         # Get form data
@@ -148,6 +164,7 @@ def manage_users():
                          activities=activities.data)
 
 @app.route('/users/delete/<user_id>', methods=['POST'])
+@login_required
 def delete_user(user_id):
     try:
         supabase.table('users').delete().eq('id', user_id).execute()
@@ -157,6 +174,7 @@ def delete_user(user_id):
     return redirect(url_for('manage_users'))
 
 @app.route("/api/users")
+@login_required
 def get_users():
     # Join users with activities table to get the activity name
     users = supabase.table("users").select("*, activities(name)").execute()
@@ -178,6 +196,7 @@ def get_users():
     return Response(json.dumps(simplified_users, default=str), mimetype="application/json")
 
 @app.route('/manage_activities', methods=['GET', 'POST'])
+@login_required
 def manage_activities():
     if request.method == 'POST':
         try:
@@ -234,6 +253,7 @@ def manage_activities():
         return render_template('manage_activities.html', activities=[])
 
 @app.route('/delete_activity', methods=['POST'])
+@login_required
 def delete_activity():
     try:
         data = request.get_json()
@@ -260,97 +280,125 @@ def delete_activity():
             'error': str(e)
         }), 400
 
-@app.route('/login', methods=['POST'])
+
+# Route to handle login form submission
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    data = request.get_json()
-    email = data.get('email')
-    password = data.get('password')
+    # If already logged in, redirect to dashboard or stored URL
+    if session.get('logged_in') and request.method == 'GET':
+        next_url = session.pop('next_url', None) or url_for('dashboard')
+        return redirect(next_url)
+    
+    if request.method == 'POST':
+        data = request.get_json()
+        email = data.get('email')
+        password = data.get('password')
 
-    if not email or not password:
-        return jsonify({'success': False, 'error': 'Email and password are required'}), 400
+        if not email or not password:
+            return jsonify({'success': False, 'error': 'Email and password are required'}), 400
 
-    try:
-        # Query your admin table
-        response = supabase.table('admin').select('*').eq('email', email).execute()
-        
-        if not response.data or len(response.data) == 0:
-            return jsonify({'success': False, 'error': 'Invalid credentials'}), 401
+        try:
+            response = supabase.table('admins').select('*').eq('email', email).execute()
+            
+            if not response.data or len(response.data) == 0:
+                return jsonify({'success': False, 'error': 'Invalid credentials'}), 401
 
-        admin_user = response.data[0]
-        
-        # Verify password (assuming passwords are hashed in your database)
-        if not check_password_hash(admin_user['password'], password):
-            return jsonify({'success': False, 'error': 'Invalid credentials'}), 401
+            admin_user = response.data[0]
+            
+            if not check_password_hash(admin_user['password'], password):
+                return jsonify({'success': False, 'error': 'Invalid credentials'}), 401
 
-        # Set up session
-        session['admin_id'] = admin_user['id']
-        session['admin_email'] = admin_user['email']
-        session['admin_name'] = admin_user['name']
-        session['logged_in'] = True
+            # Set up session
+            session['admin_id'] = admin_user['id']
+            session['admin_email'] = admin_user['email']
+            session['admin_name'] = admin_user['name']
+            session['logged_in'] = True
 
-        return jsonify({
-            'success': True,
-            'message': 'Login successful',
-            'user': {
-                'id': admin_user['id'],
-                'name': admin_user['name'],
-                'email': admin_user['email']
-            }
-        })
+            # Return redirect URL in JSON response
+            next_url = session.pop('next_url', None) or url_for('dashboard')
+            return jsonify({
+                'success': True,
+                'message': 'Login successful',
+                'redirect': next_url,
+                'user': {
+                    'id': admin_user['id'],
+                    'name': admin_user['name'],
+                    'email': admin_user['email']
+                }
+            })
+            
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    # GET request - render login page
+    return render_template('login.html')
 
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/signup', methods=['POST'])
+# Route to handle signup form submission
+@app.route('/signup', methods=['GET', 'POST'])
 def signup():
-    data = request.get_json()
-    name = data.get('name')
-    email = data.get('email')
-    password = data.get('password')
+    if request.method == 'POST':
+        data = request.get_json()
+        name = data.get('name')
+        email = data.get('email')
+        password = data.get('password')
 
-    # Basic validation
-    if not all([name, email, password]):
-        return jsonify({'success': False, 'error': 'All fields are required'}), 400
+        # Basic validation
+        if not all([name, email, password]):
+            return jsonify({'success': False, 'error': 'All fields are required'}), 400
 
-    try:
-        # Check if email already exists
-        existing_user = supabase.table('admin').select('*').eq('email', email).execute()
-        if existing_user.data and len(existing_user.data) > 0:
-            return jsonify({'success': False, 'error': 'Email already registered'}), 400
+        try:
+            # Check if email already exists
+            existing_user = supabase.table('admins').select('*').eq('email', email).execute()
+            if existing_user.data and len(existing_user.data) > 0:
+                return jsonify({'success': False, 'error': 'Email already registered'}), 400
 
-        # Hash the password
-        hashed_password = generate_password_hash(password)
+            # Hash the password
+            hashed_password = generate_password_hash(password)
 
-        # Create new admin user
-        new_admin = {
-            'name': name,
-            'email': email,
-            'password': hashed_password
-        }
-
-        # Insert into admin table
-        response = supabase.table('admin').insert(new_admin).execute()
-
-        if not response.data or len(response.data) == 0:
-            return jsonify({'success': False, 'error': 'Failed to create account'}), 500
-
-        return jsonify({
-            'success': True,
-            'message': 'Account created successfully! You can now log in.',
-            'user': {
-                'id': response.data[0]['id'],
-                'name': response.data[0]['name'],
-                'email': response.data[0]['email']
+            # Create new admin user
+            new_admin = {
+                'name': name,
+                'email': email,
+                'password': hashed_password
             }
-        })
 
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+            # Insert into admin table
+            response = supabase.table('admins').insert(new_admin).execute()
 
-@app.route('/logout', methods=['POST'])
+            if not response.data or len(response.data) == 0:
+                return jsonify({'success': False, 'error': 'Failed to create account'}), 500
+
+            return jsonify({
+                'success': True,
+                'message': 'Account created successfully! You can now log in.',
+                'user': {
+                    'id': response.data[0]['id'],
+                    'name': response.data[0]['name'],
+                    'email': response.data[0]['email']
+                }
+            })
+
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+    
+    return render_template('signup.html')
+
+@app.route('/logout', methods=['POST', 'GET'])  # Allow both POST and GET for flexibility
+@login_required
 def logout():
     session.clear()
-    return jsonify({'success': True, 'message': 'Logged out successfully'})
+    
+    # For AJAX requests, return JSON (compatible with your existing frontend)
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'success': True, 
+            'message': 'Logged out successfully',
+            'redirect': url_for('login')  # Tell frontend where to redirect
+        })
+    
+    # For direct browser requests, redirect immediately
+    return redirect(url_for('login'))
 
 if __name__ == '__main__':
     app.run(debug=True)
