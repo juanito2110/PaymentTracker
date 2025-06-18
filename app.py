@@ -66,7 +66,7 @@ def sync_payments():
 @app.route('/dashboard')
 @login_required 
 def dashboard():
-    # ✅ Keep recent payments separate from user-level payments
+    # Keep recent payments separate from user-level payments
     recent_payments_response = supabase.table("payments").select("*").order("payment_date", desc=True).limit(200).execute()
     recent_payments = recent_payments_response.data if not isinstance(recent_payments_response, list) else recent_payments_response
     for p in recent_payments:
@@ -110,7 +110,7 @@ def dashboard():
         })
 
     return render_template('dashboard.html', 
-        payments=recent_payments,  # ✅ this stays the full independent list
+        payments=recent_payments,  # this stays the full independent list
         summary=summary.data,
         users=users)
 
