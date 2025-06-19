@@ -7,7 +7,7 @@ from email_reader import process_emails  # Import the function above
 from jinja2 import Environment
 from datetime import datetime
 import json
-from werkzeug.security import check_password_hash, generate_password_hash
+import bcrypt
 from functools import wraps
 
 
@@ -305,7 +305,7 @@ def login():
 
             admin_user = response.data[0]
             
-            if not check_password_hash(admin_user['password'], password):
+            if not bcrypt.checkpw(password.encode('utf-8'), admin_user['password'].encode('utf-8')):
                 return jsonify({'success': False, 'error': 'Invalid credentials'}), 401
 
             # Set up session
@@ -354,7 +354,7 @@ def signup():
                 return jsonify({'success': False, 'error': 'Email already registered'}), 400
 
             # Hash the password
-            hashed_password = generate_password_hash(password)
+            hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')# generate_password_hash(password)
 
             # Create new admin user
             new_admin = {
