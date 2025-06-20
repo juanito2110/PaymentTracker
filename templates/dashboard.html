@@ -64,7 +64,7 @@
               <span class="text-gray-500">{{ "%.2f"|format(user.expected_total) }}€</span>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
-              <span class="font-medium text-blue-600">{{ "%.2f"|format(user.paid_total - user.expected_total)}}€</span>
+              <span class="font-medium text-blue-600">{{ "%.2f"|format(user.expected_total - user.paid_total)}}€</span>
             </td>
           </tr>
           {% else %}
