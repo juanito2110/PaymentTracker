@@ -384,6 +384,69 @@ def signup():
     
     return render_template('signup.html')
 
+@app.route('/account')
+@login_required
+def account():
+    """Render the account settings page"""
+    return render_template('account.html')
+
+@app.route('/api/account')
+@login_required
+def get_account_info():
+    """Get current user's account information"""
+    try:
+        # Get user info from database
+        response = supabase.table('admins').select('*').eq('id', session['admin_id']).execute()
+        user = response.data[0] if response.data else None
+        
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+            
+        return jsonify({
+            'success': True,
+            'user': {
+                'name': user['name'],
+                'email': user['email']
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/account/change-password', methods=['POST'])
+@login_required
+def change_password():
+    """Handle password change requests"""
+    data = request.get_json()
+    current_password = data.get('current_password')
+    new_password = data.get('new_password')
+    
+    if not all([current_password, new_password]):
+        return jsonify({'success': False, 'error': 'All fields are required'}), 400
+    
+    try:
+        # Get user from database
+        response = supabase.table('admins').select('*').eq('id', session['admin_id']).execute()
+        admin_user = response.data[0] if response.data else None
+        
+        if not admin_user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+            
+        # Verify current password
+        if not bcrypt.checkpw(current_password.encode('utf-8'), admin_user['password'].encode('utf-8')):
+            return jsonify({'success': False, 'error': 'Current password is incorrect'}), 401
+            
+        # Update password
+        hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        update_response = supabase.table('admins').update({'password': hashed_password}).eq('id', session['admin_id']).execute()
+        
+        if not update_response.data:
+            return jsonify({'success': False, 'error': 'Failed to update password'}), 500
+            
+        return jsonify({'success': True, 'message': 'Password updated successfully'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/logout', methods=['POST', 'GET'])  # Allow both POST and GET for flexibility
 @login_required
 def logout():
