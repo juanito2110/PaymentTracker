@@ -3,19 +3,13 @@ from dbCode import DBOperations
 from functools import wraps
 import os
 from dotenv import load_dotenv
-
-
 import supabase
 from supabase import create_client, Client
-import os
-from dotenv import load_dotenv
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response, session
 from email_reader import process_emails  # Import the function above
 from jinja2 import Environment
 from datetime import datetime
 import json
 import bcrypt
-from functools import wraps
 
 
 
